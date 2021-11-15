@@ -1,0 +1,52 @@
+---
+title: "CSN_lab5"
+output: html_document
+---
+
+```{r}
+library(igraph)
+library(igraphdata)
+
+data("foodwebs")
+foodweb_net <- foodwebs[[9]]
+print("foodweb_net")
+gsize(foodweb_net)
+gorder(foodweb_net)
+
+data("macaque")
+macaque_net <- macaque
+print("macaque_net")
+gsize(macaque_net)
+gorder(macaque_net)
+
+data("enron")
+enron_net <- enron
+print("enron_net")
+gsize(enron_net)
+gorder(enron_net)
+```
+
+
+Algorithms to try:
+
+• *edge.betweenness.community* [Newman and Girvan, 2004]
+• *fastgreedy.community* [Clauset et al., 2004]: modularity greedy opti-
+mization method.
+• *label.propagation.community* [Raghavan et al., 2007]: This is a fast, nearly linear time algorithm for detecting community structure in net- works. It works by labeling the vertices with unique labels and then updating the labels by majority voting in the neighborhood of the vertex.
+• *leading.eigenvector.community* [Newman, 2006]
+• *multilevel.community* [Blondel et al., 2008]: This is a multi-level mod-
+ularity optimization algorithm (the Louvain method).
+• *optimal.community* [Brandes et al., 2008]: Works by maximizing the mod- ularity measure over all possible partitions.
+• *spinglass.community* [Reichardt and Bornholdt, 2006]: tries to find com- munities in graphs via a spin-glass model and simulated annealing.
+• *walktrap.community* [Pons and Latapy, 2005]: tries to find densely con- nected subgraphs (communities) in a graph via random walks. The idea is that short random walks tend to stay in the same community.
+• *infomap.community* [Rosvall and Bergstrom, 2008]: Find community struc- ture that minimizes the expected description length of a random walker tra jectory.
+
+
+```{r}
+edge_btw <- edge.betweenness.community (enron_net, directed = FALSE,
+    edge.betweenness = TRUE, merges = TRUE, bridges = TRUE)
+modularity(edge_btw)
+plot(edge_btw, enron_net)
+```
+
+
