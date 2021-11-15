@@ -48,7 +48,7 @@ find_communities <- function(graph) {
     graph = delete.vertices(graph, Isolated)
   }
   
-  arpack_defaults$maxiter = 1000000
+  arpack_defaults$maxiter = 1000000000
   communities <- leading.eigenvector.community(graph, options = arpack_defaults)
   mod_4 <- modularity(communities)
   tpr_4 <- get_TPR(graph, communities)   
@@ -79,13 +79,28 @@ find_communities <- function(graph) {
   tpr_9 <- get_TPR(graph, communities)  
   
   
-  modularities <- c(mod_1,mod_2,mod_3,mod_4,mod_5,mod_6,mod_7,mod_8,mod_9)
-  TPRs <- c(tpr_1,tpr_2,tpr_3,tpr_4,tpr_5,tpr_6,tpr_7,tpr_8,tpr_9)
+  modularities <- c(mod_1,mod_2,mod_3,mod_4,mod_5,mod_7,mod_8,mod_9)
+  TPRs <- c(tpr_1,tpr_2,tpr_3,tpr_4,tpr_5,tpr_7,tpr_8,tpr_9)
   
-  return(list("modularities"=modularities, "TPRs"=TPRs))
+  return(list("modularities" = modularities, "TPRs" = TPRs))
 
   
 }
 
+foods_values <- find_communities(foodweb_net)
 
-find_communities(foodweb_net)
+modularities_df <- data.frame(unlist(foods_values$modularities))
+TPRs_df <- data.frame(unlist(foods_values$TPRs))
+
+
+# STORAGE
+
+
+
+
+
+
+
+
+
+

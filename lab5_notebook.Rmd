@@ -6,15 +6,16 @@ output: html_document
 ```{r}
 library(igraph)
 library(igraphdata)
+library(future)
 
 data("foodwebs")
-foodweb_net <- foodwebs[[9]]
+foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
 print("foodweb_net")
 gsize(foodweb_net)
 gorder(foodweb_net)
 
 data("macaque")
-macaque_net <- macaque
+macaque_net <- as.undirected(macaque, mode = "collapse")
 print("macaque_net")
 gsize(macaque_net)
 gorder(macaque_net)
@@ -34,8 +35,7 @@ Algorithms to try:
 mization method.
 • *label.propagation.community* [Raghavan et al., 2007]: This is a fast, nearly linear time algorithm for detecting community structure in net- works. It works by labeling the vertices with unique labels and then updating the labels by majority voting in the neighborhood of the vertex.
 • *leading.eigenvector.community* [Newman, 2006]
-• *multilevel.community* [Blondel et al., 2008]: This is a multi-level mod-
-ularity optimization algorithm (the Louvain method).
+• *multilevel.community* [Blondel et al., 2008]: This is a multi-level modularity optimization algorithm (the Louvain method).
 • *optimal.community* [Brandes et al., 2008]: Works by maximizing the mod- ularity measure over all possible partitions.
 • *spinglass.community* [Reichardt and Bornholdt, 2006]: tries to find com- munities in graphs via a spin-glass model and simulated annealing.
 • *walktrap.community* [Pons and Latapy, 2005]: tries to find densely con- nected subgraphs (communities) in a graph via random walks. The idea is that short random walks tend to stay in the same community.
@@ -43,10 +43,30 @@ ularity optimization algorithm (the Louvain method).
 
 
 ```{r}
-edge_btw <- edge.betweenness.community (enron_net, directed = FALSE,
+future::plan(multicore=3)
+communities <- edge.betweenness.community (foodweb_net, directed = FALSE,
     edge.betweenness = TRUE, merges = TRUE, bridges = TRUE)
-modularity(edge_btw)
-plot(edge_btw, enron_net)
 ```
+
+
+
+# measures
+
+```{r}
+#TPR
+communities <- cluster_infomap(foodweb_net)
+modularity(communities)
+
+get_TPR(foodweb_net, communities)
+```
+
+
+
+
+```{r}
+
+```
+
+
 
 
