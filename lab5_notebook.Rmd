@@ -6,7 +6,6 @@ output: html_document
 ```{r}
 library(igraph)
 library(igraphdata)
-library(future)
 
 data("foodwebs")
 foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")

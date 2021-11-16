@@ -1,4 +1,27 @@
 
+library(igraph)
+library(igraphdata)
+
+# get nets
+data("foodwebs")
+foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
+
+data("macaque")
+macaque_net <- as.undirected(macaque, mode = "collapse")
+
+
+# define globals
+nets <- c(foodweb_net,macaque_net)
+algorithms <- c("edge.betweenness.community",
+                "fastgreedy.community",
+                "label.propagation.community",
+                "leading.eigenvector.community",
+                "multilevel.community",
+                "spinglass.community",
+                "walktrap.community",
+                "infomap.community")
+
+
 
 # MEASURES
 
@@ -25,6 +48,7 @@ get_TPR <- function(graph, communities) {
 # IMPLEMENTATION
 
 find_communities <- function(graph) {
+  
   graph <- as.undirected(graph, mode='collapse')
   
   # edge.betweeness
@@ -82,21 +106,23 @@ find_communities <- function(graph) {
   modularities <- c(mod_1,mod_2,mod_3,mod_4,mod_5,mod_7,mod_8,mod_9)
   TPRs <- c(tpr_1,tpr_2,tpr_3,tpr_4,tpr_5,tpr_7,tpr_8,tpr_9)
   
-  return(list("modularities" = modularities, "TPRs" = TPRs))
+  return(data.frame("algorithm"=algorithms,"modularities" = modularities, "TPRs" = TPRs))
 
   
 }
 
-foods_values <- find_communities(foodweb_net)
-
-modularities_df <- data.frame(unlist(foods_values$modularities))
-TPRs_df <- data.frame(unlist(foods_values$TPRs))
 
 
 # STORAGE
 
+measures_food <- find_communities(foodweb_net)
 
+#for (net in nets) {
+#  measures <- find_communities(foodweb_net)
+#  measures_df <- data.frame("algorithm"=algorithms,"modularities" = measures$modularities,"TPRs" = measures$TPRs)
+#}
 
+write.csv(measures_food, "measures_foodwebs.csv")
 
 
 
