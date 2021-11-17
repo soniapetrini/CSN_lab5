@@ -2,6 +2,8 @@
 library(igraph)
 library(igraphdata)
 
+rm(list=ls())
+
 # get nets
 data("foodwebs")
 foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
@@ -30,20 +32,23 @@ get_TPR <- function(graph, communities) {
   memberships <- membership(communities)
   tpr_clusters <- c()
   i <- 1
+  w <- c()
   for (m in unique(memberships)) {
     members <- memberships[memberships==m]
     nodes <- names(members)
     subgraph <- induced_subgraph(graph,nodes,impl = "auto")
+    sub_nodes <- vcount(subgraph)
+    w[i] <- sub_nodes
     nodes_in_triads <- unique(triangles(subgraph))
-    tpr_clusters[i] <- length(nodes_in_triads)/vcount(subgraph)
+    tpr_clusters[i] <- length(nodes_in_triads)/sub_nodes
     i <- i + 1
   }
-  tpr <- mean(tpr_clusters)
+  tpr <- weighted.mean(tpr_clusters, w)
   return(tpr)
 }
 
 
-
+help(mean)
 
 # IMPLEMENTATION
 
@@ -123,8 +128,6 @@ measures_food <- find_communities(foodweb_net)
 #}
 
 write.csv(measures_food, "measures_foodwebs.csv")
-
-
 
 
 
