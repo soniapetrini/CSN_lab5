@@ -48,6 +48,25 @@ get_TPR <- function(graph, communities) {
 }
 
 
+## Expansion
+get_expansion <- function(graph,communities) {
+  memberships <- membership(communities)
+  list <- c()
+  i <- 1
+  for (edge_index in 1:length(E(graph))) {
+    edge_nodes <- V(graph)[ inc(edge_index) ]$name
+    if (memberships[edge_nodes[1]] != memberships[edge_nodes[2]]) {
+      list[i] <- memberships[edge_nodes[1]]
+      list[i+1] <- memberships[edge_nodes[2]]
+      i <- i + 2
+    }
+  }
+  expansions <- table(list)/table(memberships)
+  expansion <- mean(expansions)
+  return(expansion)
+}
+
+
 help(mean)
 
 # IMPLEMENTATION
@@ -55,21 +74,25 @@ help(mean)
 find_communities <- function(graph) {
   
   graph <- as.undirected(graph, mode='collapse')
+  graph <- simplify(graph)
   
   # edge.betweeness
   communities <- edge.betweenness.community(graph)
   mod_1 <- modularity(communities)
   tpr_1 <- get_TPR(graph, communities)
+  exp_1 <- get_expansion(graph,communities)
   
   # fastgreedy.community
   communities <- fastgreedy.community(graph)
   mod_2 <- modularity(communities)
   tpr_2 <- get_TPR(graph, communities)
+  exp_2 <- get_expansion(graph,communities)
   
   # label propagation
   communities <-  cluster_label_prop(graph)
   mod_3 <- modularity(communities)
-  tpr_3 <- get_TPR(graph, communities)  
+  tpr_3 <- get_TPR(graph, communities) 
+  exp_3 <- get_expansion(graph,communities)
   
   # leading eigenvector
   Isolated = which(degree(foodweb_net)==0)
@@ -80,12 +103,14 @@ find_communities <- function(graph) {
   arpack_defaults$maxiter = 1000000000
   communities <- leading.eigenvector.community(graph, options = arpack_defaults)
   mod_4 <- modularity(communities)
-  tpr_4 <- get_TPR(graph, communities)   
+  tpr_4 <- get_TPR(graph, communities)
+  exp_4 <- get_expansion(graph,communities)
   
   # louvain method (multilevel)
   communities <- cluster_louvain(graph)
   mod_5 <- modularity(communities)
-  tpr_5 <- get_TPR(graph, communities)  
+  tpr_5 <- get_TPR(graph, communities)
+  exp_5 <- get_expansion(graph,communities)
   
   # optimal clustering
 
@@ -95,23 +120,28 @@ find_communities <- function(graph) {
   # spinglass
   communities <- cluster_spinglass(graph)
   mod_7 <- modularity(communities)
-  tpr_7 <- get_TPR(graph, communities)  
+  tpr_7 <- get_TPR(graph, communities)
+  exp_7 <- get_expansion(graph,communities)
   
   # walktrap
   communities <- walktrap.community(graph)
   mod_8 <- modularity(communities)
-  tpr_8 <- get_TPR(graph, communities)  
+  tpr_8 <- get_TPR(graph, communities)
+  exp_8 <- get_expansion(graph,communities)
   
   # infomap
   communities <- cluster_infomap(graph)
   mod_9 <- modularity(communities)
-  tpr_9 <- get_TPR(graph, communities)  
+  tpr_9 <- get_TPR(graph, communities)
+  exp_9 <- get_expansion(graph,communities)
   
   
   modularities <- c(mod_1,mod_2,mod_3,mod_4,mod_5,mod_7,mod_8,mod_9)
   TPRs <- c(tpr_1,tpr_2,tpr_3,tpr_4,tpr_5,tpr_7,tpr_8,tpr_9)
+  expansions <- c(exp_1,exp_2,exp_3,exp_4,exp_5,exp_7,exp_8,exp_9)
   
-  return(data.frame("algorithm"=algorithms,"modularities" = modularities, "TPRs" = TPRs))
+  return(data.frame("algorithm"=algorithms,"modularity" = modularities, 
+                    "TPR" = TPRs,"expansion" = expansions))
 
   
 }
