@@ -49,9 +49,9 @@ get_TPR <- function(graph, communities) {
   return(tpr)
 }
 
-## Expansion
+## Expansion 2 (fc/nc)
 
-get_expansion = function(graph, communities){
+get_expansion_2 = function(graph, communities){
   
   memberships = membership(communities)
   expansion = c()
@@ -61,6 +61,24 @@ get_expansion = function(graph, communities){
   nc = sum(in_out)
   
   return(fc/nc)
+}
+
+## Expansion
+get_expansion <- function(graph,communities) {
+  memberships <- membership(communities)
+  list <- c()
+  i <- 1
+  for (edge_index in 1:length(E(graph))) {
+    edge_nodes <- V(graph)[ inc(edge_index) ]$name
+    if (memberships[edge_nodes[1]] != memberships[edge_nodes[2]]) {
+      list[i] <- memberships[edge_nodes[1]]
+      list[i+1] <- memberships[edge_nodes[2]]
+      i <- i + 2
+    }
+  }
+  expansions <- table(list)/table(memberships)
+  expansion <- mean(expansions)
+  return(expansion)
 }
 
 ## Conductance
@@ -76,11 +94,16 @@ get_conductance = function(graph, communities){
 ## Modularity (already implemented in iGraph)
 
 
+
+
+
+
 # IMPLEMENTATION
 
 find_communities <- function(graph) {
   
   graph <- as.undirected(graph, mode='collapse')
+  graph <- simplify(graph)
   
   # edge.betweeness
   communities <- edge.betweenness.community(graph)
@@ -91,8 +114,8 @@ find_communities <- function(graph) {
   # fastgreedy.community
   communities <- fastgreedy.community(graph)
   mod_2 <- modularity(communities)
-  tpr_2 <- get_TPR
-  exp_2 <- get_expansion(graph, communities)
+  tpr_2 <- get_TPR(graph, communities)
+  exp_2 <- get_expansion(graph,communities)
   
   # label propagation
   communities <-  cluster_label_prop(graph)
@@ -111,12 +134,12 @@ find_communities <- function(graph) {
   mod_4 <- modularity(communities)
   tpr_4 <- get_TPR(graph, communities)
   exp_4 <- get_expansion(graph, communities)
-  
+
   # louvain method (multilevel)
   communities <- cluster_louvain(graph)
   mod_5 <- modularity(communities)
   tpr_5 <- get_TPR(graph, communities)
-  exp_5 <- get_expansion(graph, communities)
+  exp_5 <- get_expansion(graph,communities)
   
   # optimal clustering
 
@@ -139,17 +162,15 @@ find_communities <- function(graph) {
   communities <- cluster_infomap(graph)
   mod_9 <- modularity(communities)
   tpr_9 <- get_TPR(graph, communities)
-  exp_8 <- get_expansion(graph, communities)
+  exp_9 <- get_expansion(graph, communities)
   
   
   modularities <- c(mod_1,mod_2,mod_3,mod_4,mod_5,mod_7,mod_8,mod_9)
   TPRs <- c(tpr_1,tpr_2,tpr_3,tpr_4,tpr_5,tpr_7,tpr_8,tpr_9)
-  expansions <- c(exp_1,exp_2,exp_3,exp_4,exp_5,exp_6,exp_7,exp_8,exp_9)
+  expansions <- c(exp_1,exp_2,exp_3,exp_4,exp_5,exp_7,exp_8,exp_9)
   
-  return(data.frame("algorithm"=algorithms,"modularities" = modularities,
-                    "TPRs" = TPRs,"expansions"=expansions))
-
-  
+  return(data.frame("algorithm"=algorithms,"modularity" = modularities, 
+                    "TPR" = TPRs,"expansion" = expansions))
 }
 
 
