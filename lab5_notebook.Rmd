@@ -24,6 +24,8 @@ enron_net <- enron
 print("enron_net")
 gsize(enron_net)
 gorder(enron_net)
+
+karate <- graph.famous("Zachary")
 ```
 
 
@@ -41,45 +43,19 @@ mization method.
 • *infomap.community* [Rosvall and Bergstrom, 2008]: Find community struc- ture that minimizes the expected description length of a random walker tra jectory.
 
 
-```{r}
-
-get_expansion <- function(graph,communities) {
-  memberships <- membership(communities)
-  list <- c()
-  i <- 1
-  for (edge_index in 1:length(E(graph))) {
-        edge_nodes <- V(graph)[ inc(edge_index) ]$name
-        if (memberships[edge_nodes[1]] != memberships[edge_nodes[2]]) {
-          list[i] <- memberships[edge_nodes[1]]
-          list[i+1] <- memberships[edge_nodes[2]]
-          i <- i + 2
-        }
-  }
-  expansions <- table(list)/table(memberships)
-  expansion <- mean(expansions)
-  return(expansion)
-}
-
-communities <- edge.betweenness.community(macaque)
-get_expansion(macaque,communities)
-
-```
-
-
-# measures
-
-```{r}
-#TPR
-lennart <- read.csv("algs_results_foodwebs.csv")
-```
 
 
 
 
 
-```{r}
 
-```
+
+
+
+
+
+
+
 
 
 
