@@ -1,9 +1,14 @@
 
 # PACKAGES
 
+rm(list=ls())
+
 library(igraph)
 library(igraphdata)
+library(ggplot2)
+library(tidyr)
 
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/FIB/csn/lab/5/CSN_lab5")
 
 # get nets
 data("foodwebs")
@@ -15,10 +20,10 @@ karate_net <- graph.famous("Zachary")
 
 
 ## customized graph
-merge_communities <- function(graphs, difficulty = length(graphs)+15 ) {
+merge_communities <- function(graphs, difficulty = length(graphs)+20 ) {
   
   # difficulty is an integer equal to the number of edges to add between communities
-  if (difficulty < length(graphs)+8) {
+  if (difficulty < length(graphs)+20) {
     stop("Difficulty should be higher, or you could get an unconnected graph")
   }
   
@@ -40,6 +45,7 @@ merge_communities <- function(graphs, difficulty = length(graphs)+15 ) {
   my_edges <- x[,sample(seq(dim(x)[2]),difficulty,replace=F)]
   GU <- GU + edges(my_edges)
   return(GU)
+  
 }
 
 
@@ -79,7 +85,7 @@ get_measures <- function(graph, communities) {
   
   
   # Expansion
-  is_edges_out = crossing(communities,graph)  # is the edge pointing out the cluster?
+  is_edges_out = igraph::crossing(communities,graph)  # is the edge pointing out the cluster?
   fc_tot = 2*sum(is_edges_out)
   EXPANSION <- fc_tot/n
   
@@ -87,9 +93,9 @@ get_measures <- function(graph, communities) {
   # Conductance
   fc <- rep(0, length(clusters))
   mc <- rep(0, length(clusters))
-  for (edge_index in 1:length(E(karate))) {
+  for (edge_index in 1:length(E(graph))) {
     edge <- list(origin=NULL,end=NULL)
-    edge[c("origin","end")] <- V(karate)[ inc(edge_index) ]$name
+    edge[c("origin","end")] <- V(graph)[ inc(edge_index) ]$name
     
     if (memberships[edge$origin] != memberships[edge$end]) {
       fc[memberships[edge$origin]] %+=% 1
@@ -99,7 +105,7 @@ get_measures <- function(graph, communities) {
   }
   
   conductances <- fc/(2*mc+fc)
-  weights <- table(memberships)/vcount(karate)
+  weights <- table(memberships)/vcount(graph)
   CONDUCTANCE <- sum(conductances*weights)
   
   
@@ -132,7 +138,7 @@ find_communities <- function(graph) {
   measures2[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
   # label propagation
-  communities <-  cluster_label_prop(graph)
+  communities <-  label.propagation.community(graph)
   n_clus_3 <- length(communities$membership %>% unique())
   measures3 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures3[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
@@ -180,7 +186,7 @@ find_communities <- function(graph) {
   
   df <- data.frame("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   df <- rbind(df,measures1,measures2,measures3,measures4,measures5,measures7,measures8,measures9)
-  df$algortihm <- algorithms
+  df$algorithm <- algorithms
   df$clusters <- c(n_clus_1,n_clus_2,n_clus_3,n_clus_4,n_clus_5,n_clus_7,n_clus_8,n_clus_9)
   
   return(df)
@@ -189,18 +195,24 @@ find_communities <- function(graph) {
 
 # STORAGE
 notable_graphs <- c("Coxeter","Folkman","Herschel","Icosahedral","Cubical")
-my_net <- merge_communities(notable_graphs[2:5],difficulty = 17)
+my_net <- merge_communities(notable_graphs[2:5],difficulty = 25)
 plot(my_net)
-nets <- list("macaque_net"=macaque_net,
-             "karate_net"=karate_net,"my_net"=my_net)
+
+nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
+             "my_net"=my_net,"foodwebs_net"=foodweb_net)
+
+
+
+#find_communities(karate_net)
 
 for (i in 1:length(nets)) {
   net <- nets[[i]]
   net_name <- names(nets[i])
-  df <- find_communities(net)
-  write.csv(df, paste(net_name,"df.csv",sep = "_"))
   print(net_name)
+  df <- find_communities(net)
   print(df)
+  write.csv(df, paste(net_name,"df.csv",sep = "_"))
+  
 }
 
 
