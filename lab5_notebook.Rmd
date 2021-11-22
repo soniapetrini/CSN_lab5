@@ -25,7 +25,7 @@ print("enron_net")
 gsize(enron_net)
 gorder(enron_net)
 
-karate <- graph.famous("Zachary")
+karate_net <- graph.famous("Zachary")
 ```
 
 
@@ -43,6 +43,31 @@ mization method.
 • *infomap.community* [Rosvall and Bergstrom, 2008]: Find community struc- ture that minimizes the expected description length of a random walker tra jectory.
 
 
+```{r}
+vertex_attr(karate_net) <- list(name=V(karate_net))
+communities <- edge.betweenness.community(karate_net)
+
+# Conductance new
+  n <- vcount(karate_net)
+  memberships <- membership(communities)
+  clusters <- unique(memberships)
+  
+  # TPR
+  nodes_in_tr_c <- c()
+  i <- 1
+  for (c in clusters) {
+    members <- memberships[memberships==1]
+    nodes <- names(members)
+    subgraph <- induced_subgraph(karate_net,nodes,impl = "auto")
+    nodes_in_triads <- unique(triangles(subgraph))
+    nodes_in_tr_c[i] <- length(nodes_in_triads)   # number of nodes in triads
+    i <- i + 1
+  }
+  TPR <- sum(nodes_in_tr_c)/n
+
+
+
+```
 
 
 
