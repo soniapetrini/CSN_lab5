@@ -7,6 +7,9 @@ output: html_document
 library(igraph)
 library(igraphdata)
 library(ggplot2)
+library(reshape)
+library(viridis)
+library(dplyr)
 
 data("foodwebs")
 foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
@@ -44,64 +47,12 @@ mization method.
 • *infomap.community* [Rosvall and Bergstrom, 2008]: Find community struc- ture that minimizes the expected description length of a random walker tra jectory.
 
 
-```{r}
 
-merge_communities <- function(graphs, difficulty = NULL) {
-  
-  difficulty=0
-  nodes <- c(1)
-  EL_union <- c()
-  for (i in 1:length(graphs)) {
-    g <- make_graph(graphs[i])
-    nodes[i+1] <- vcount(g)
-    # rename vertices
-    labels <- if (i==1) {seq(nodes[i],nodes[i+1])} else {seq(nodes[2],nodes[2]+nodes[2+1]-1)}
-    vertex_attr(g) <- list(name = labels)
-    EL  = get.edgelist(g)
-    EL_union <- rbind(EL_union,EL)
-  }
-  GU = graph_from_edgelist(EL_union, directed=FALSE)
-  
-  # add some between-communities edges
-  x <- combn(V(GU),2)
-  my_edges <- x[,sample(seq(dim(x)[2]),difficulty,replace=F)]
-  GU <- GU + edges(my_edges)
-  plot(GU)
-  
-  return(GU)
-  
-}
-
-graphs <- c("Tutte","Coxeter","Thomassen","Meredith")#,"Folkman","Herschel","Icosahedral","Cubical")
-syn_graph <- merge_communities(graphs, difficulty = 10)
-plot(syn_graph)
-```
-
+# Plot of results for a Network
 
 ```{r}
-library(tidyr)
-library(viridis)
-df_long <- df %>% pivot_longer(-algortihm, names_to = "Var", values_to = "val")
-
-df[,-ncol(df)] %>% pivot_longer(-algortihm, names_to = "Var", values_to = "val") %>%
-  ggplot(aes(x = Var, y = val, size=val, color=algortihm))+
-  geom_point() +
-  scale_size(range = c(1, 10), name="Population (M)") +
-  scale_fill_viridis(discrete=TRUE, guide=FALSE, option="A") +
-  theme(legend.position="bottom") +
-  ylab("Value") +
-  xlab("Measure") +
-  theme(legend.position = "none")
-
-```
-
-
-```{r}
-library(dplyr)
-
 nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
              "my_net"=my_net,"foodwebs_net"=foodweb_net)
-
 
 df <- read.csv("foodwebs_net_df.csv")
   
@@ -117,9 +68,47 @@ dev.off()
 ```
 
 
+# Plot for different difficulty values
+
 ```{r}
-communities <- label.propagation.community(macaque_net)
-plot(macaque_net,vertex.color=membership(communities))
+graphs <- c("Coxeter","Folkman","Herschel","Cubical")
+
+est_clusters <- list()
+i <- 1
+difficulties <- seq(0,100)
+for (d in difficulties) {
+  graph_d <- merge_communities(graphs, difficulty = d)
+  df <- find_communities(graph_d)
+  est_clusters[[i]] <- df$clusters
+  i <- i + 1
+}
+
+results <- list("edge.betweenness"=NULL,"fastgreedy"=NULL,"label.propagation"=NULL,"leading.eigenvector"=NULL,
+            "multilevel"=NULL,"spinglass"=NULL,"walktrap"=NULL,"infomap"=NULL)
+for (i in 1:length(algorithms)) {
+  results[[i]] <- as.numeric(lapply(est_clusters, `[[`, i))
+}
+
+
+# estimated clusters
+data.frame(results) %>%  select(1:4) %>% mutate(difficulty=difficulties) %>% 
+  melt(id.vars="difficulty") %>%
+  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
+  geom_line() +
+  geom_hline(yintercept=4, linetype="dashed", 
+                color = "red", size=1) +
+  ylab("estimated number of clusters")
+
+# error 
+
+data.frame(results) %>%  select(5:8) %>% mutate(difficulty=difficulties) %>%
+  melt(id.vars="difficulty") %>%
+  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
+  geom_line() +
+  geom_hline(yintercept=4, linetype="dashed", 
+                color = "red", size=1) +
+  ylab("estimated number of clusters")
+
 ```
 
 

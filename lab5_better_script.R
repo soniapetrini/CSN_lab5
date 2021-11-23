@@ -9,6 +9,8 @@ library(ggplot2)
 library(tidyr)
 library(xtable)
 
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/FIB/csn/lab/5/CSN_lab5")
+
 # get nets
 data("foodwebs")
 data("macaque")
@@ -90,7 +92,6 @@ algorithms <- c("edge.betweenness",
                 "label.propagation",
                 "leading.eigenvector",
                 "multilevel",
-                "optimal.community",
                 "spinglass",
                 "walktrap",
                 "infomap")
@@ -202,10 +203,7 @@ find_communities <- function(graph) {
   
   # optimal clustering
   
-  communities <- optimal.community(graph)
-  n_clus_6 <- length(communities$membership %>% unique())
-  measures6 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
-  measures6[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
+  #?# not working on mac, package required
   
   
   # spinglass
@@ -227,9 +225,9 @@ find_communities <- function(graph) {
   measures9[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
   df <- data.frame("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
-  df <- rbind(df,measures1,measures2,measures3,measures4,measures5,measures6,measures7,measures8,measures9)
+  df <- rbind(df,measures1,measures2,measures3,measures4,measures5,measures7,measures8,measures9)
   df$algorithm <- algorithms
-  df$clusters <- c(n_clus_1,n_clus_2,n_clus_3,n_clus_4,n_clus_5,n_clus_6,n_clus_7,n_clus_8,n_clus_9)
+  df$clusters <- c(n_clus_1,n_clus_2,n_clus_3,n_clus_4,n_clus_5,n_clus_7,n_clus_8,n_clus_9)
   
   return(df)
 }
@@ -249,77 +247,18 @@ nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
              "my_easy_net"=my_easy_net,"my_hard_net"=my_hard_net,"foodwebs_net"=foodweb_net)
 
 
-for (i in 1:length(nets)) {
-  net <- nets[[i]]
-  net_name <- names(nets[i])
-  print(net_name)
-  df <- find_communities(net)
-  print(df)
-  #write.csv(df, paste(net_name,"df.csv",sep = "_"))
-}
+#for (i in 1:length(nets)) {
+#  net <- nets[[i]]
+#  net_name <- names(nets[i])
+#  print(net_name)
+#  df <- find_communities(net)
+#  print(df)
+#  #write.csv(df, paste(net_name,"df.csv",sep = "_"))
+#}
 
-# TASK 2
-## Wikipedia gml
 
-### Loading data and Initial exploration
-
-require(tm)
-require(ggplot2)
-require(wordcloud)
-require(SnowballC)
-require(tidytext)
-
-wiki = read.graph("wikipedia.gml", format="gml")
-uwiki = as.undirected(wiki,mode = "collapse")
-
-vcount(wiki); ecount(wiki)
-edge_density(uwiki,loops = F)
-
-d = degree(uwiki,mode = "all")
-
-as.data.frame(table(d)) %>%
-  ggplot(aes(x = as.numeric(d),y = Freq)) +
-  geom_point() +
-  scale_y_continuous(trans = "log10") +
-  scale_x_continuous(trans = "log10") +
-  labs(title = "Summary Wikipedia dataset",subtitle = "Degree distribution and descriptives",
-       x="Degree",y="Number of vertices") +
-  ggplot2::annotate("label",label="Number of vertices: 27475\nNumber of edges: 85729\nEdge density: 0.0002",
-           x = 3,y=10)
-
-### Community detection
-
-fc = fastgreedy.community(uwiki)
-
-membership = membership(fc)
-
-n_groups = length(unique(membership))
-
-singletones = which(table(fc$membership) < 5)
-keep = V(uwiki)[!(fc$membership %in% singletones)]
-
-# second iteration removing outliers
-
-uwiki_2 = induced.subgraph(uwiki,keep)
-fc_2 = fastgreedy.community(uwiki_2)
-
-length(unique(fc_2$membership))
-group1 = V(uwiki_2)[fc_2$membership==1]$label
-
-cloud_importance = function(group){
-  
-  x = sapply(group, function(x) strsplit(x, split = " "),simplify = T,USE.NAMES = F)
-  x = unlist(x)
-  
-  tab = as.data.frame(table(x))
-  
-  wordcloud(words = tab$x, tab$Freq, min.freq = 2,random.order=FALSE, rot.per=0.35)
-}
-
-cloud_importance(group1)
-
-#communities <- label.propagation.community(macaque_net)
-#plot(macaque_net,communities)
+df <- find_communities(net)
+write.csv(df, paste(net_name,"df.csv",sep = "_"))
 
 
 
