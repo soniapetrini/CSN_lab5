@@ -227,6 +227,7 @@ require(ggplot2)
 require(wordcloud)
 require(SnowballC)
 require(tidytext)
+require(RColorBrewer)
 
 wiki = read.graph("wikipedia.gml", format="gml")
 uwiki = as.undirected(wiki,mode = "collapse")
@@ -248,33 +249,79 @@ as.data.frame(table(d)) %>%
 
 ### Community detection
 
-fc = fastgreedy.community(uwiki)
 
-membership = membership(fc)
+cluster = function(graph, clust_alg, complexity = 5){
+  
+  c = clust_alg(graph)
+  memberships = membership(c)
+  
+    singletones = which(table(c$membership) < complexity)
+  
+    keep = V(graph)[!(c$membership %in% singletones)]
+  
+  graph = induced.subgraph(graph,keep)
+  
+  c = clust_alg(graph) #clean graph
+  
+  n <- vcount(graph)
+  
+  is_edges_out = igraph::crossing(c,graph)  # is the edge pointing out the cluster?
+  fc_tot = 2*sum(is_edges_out)
+  
+  EXPANSION <- fc_tot/n
+  modularity = modularity(c)
+  n_groups = length(unique(c$membership))
+  
+  return(data.frame(algorithm = c$algorithm, n_groups = n_groups, expansion = EXPANSION ,modularity = modularity, row.names = NULL))
+}
 
-n_groups = length(unique(membership))
 
-singletones = which(table(fc$membership) < 5)
-keep = V(uwiki)[!(fc$membership %in% singletones)]
+wiki_results = rbind(cluster(uwiki, fastgreedy.community),
+      cluster(uwiki, walktrap.community),
+      cluster(uwiki, label.propagation.community),
+      cluster(uwiki, infomap.community))
 
-# second iteration removing outliers
+## Best clust algorithm chosen: fast greedy
 
-uwiki_2 = induced.subgraph(uwiki,keep)
-fc_2 = fastgreedy.community(uwiki_2)
+c = fastgreedy.community(uwiki)
+memberships = membership(c)
 
-length(unique(fc_2$membership))
-group1 = V(uwiki_2)[fc_2$membership==1]$label
+singletones = which(table(c$membership) < 5)
+
+keep = V(graph)[!(c$membership %in% singletones)]
+
+graph = induced.subgraph(uwiki,keep)
+
+c = fastgreedy.community(graph)
+
+
+## Result visualization of the 
 
 cloud_importance = function(group){
   
+  meaningless = c("of","and","in","the","for", "a", "to", "The", "List")
   x = sapply(group, function(x) strsplit(x, split = " "),simplify = T,USE.NAMES = F)
   x = unlist(x)
   
   tab = as.data.frame(table(x))
+  tab = tab[order(tab$Freq,decreasing = T),]
+  tab = tab[!(tab$x %in% meaningless),]
   
-  wordcloud(words = tab$x, tab$Freq, min.freq = 2,random.order=FALSE, rot.per=0.35)
+  wordcloud(words = tab$x, tab$Freq, max.words = 30,random.order=FALSE,
+            rot.per=0.35,colors=brewer.pal(8, "Dark2"))
 }
 
-cloud_importance(group1)
+# Plotting grid: cloud words 
+
+par(mfrow=c(3,4))
+
+for(i in 1:12){
+  group = V(graph)[c$membership==i]$label
+  cloud_importance(group)
+}
+
+
+
+
 
 
