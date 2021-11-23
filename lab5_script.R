@@ -4,6 +4,7 @@
 library(igraph)
 library(igraphdata)
 
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/FIB/csn/lab/5/CSN_lab5")
 
 # get nets
 data("foodwebs")
@@ -90,6 +91,7 @@ get_expansion <-  function(graph, communities){
   
   return(expansion)
 }
+
 
 
 ## Expansion 2 (fc/nc)
@@ -261,14 +263,15 @@ my_net <- merge_communities(notable_graphs[1:4],difficulty = 15)
 nets <- list("macaque_net"=macaque_net,
              "karate_net"=karate_net,"my_net"=my_net)
 
-for (i in 1:length(nets)) {
-  net <- nets[[i]]
-  df <- find_communities(net)
-  write.csv(df, paste(names(nets[i]),"df.csv",sep = "_"))
-  print(df)
-}
+#for (i in 1:length(nets)) {
+#  net <- nets[[i]]
+#  df <- find_communities(net)
+#  write.csv(df, paste(names(nets[i]),"df.csv",sep = "_"))
+#  print(df)
+#}
+#
+#
+#karate <- read.csv("karate_net_df.csv")
+#
+#len <- read.csv("algs_results_karate.csv")
 
-
-karate <- read.csv("karate_net_df.csv")
-
-len <- read.csv("algs_results_karate.csv")

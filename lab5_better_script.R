@@ -7,6 +7,7 @@ library(igraph)
 library(igraphdata)
 library(ggplot2)
 library(tidyr)
+library(xtable)
 
 setwd("~/Library/Mobile Documents/com~apple~CloudDocs/FIB/csn/lab/5/CSN_lab5")
 
@@ -20,10 +21,10 @@ karate_net <- graph.famous("Zachary")
 
 
 ## customized graph
-merge_communities <- function(graphs, difficulty = length(graphs)+20 ) {
+merge_communities <- function(graphs, difficulty = length(graphs)+8 ) {
   
   # difficulty is an integer equal to the number of edges to add between communities
-  if (difficulty < length(graphs)+20) {
+  if (difficulty < length(graphs)+8) {
     stop("Difficulty should be higher, or you could get an unconnected graph")
   }
   
@@ -46,6 +47,39 @@ merge_communities <- function(graphs, difficulty = length(graphs)+20 ) {
   GU <- GU + edges(my_edges)
   return(GU)
   
+}
+
+# 2 version
+merge_communities <- function(graphs, difficulty = NULL) {
+  n_nodes_cum <- c(0)
+  nodes_labs <- c(0)
+  nodes <- list()
+  EL_union <- c()
+  t <- 1
+  for (i in 1:length(graphs)) {
+    g <- make_graph(graphs[i])
+    n_nodes_cum[i+1] <- n_nodes_cum[i] + vcount(g) 
+    nodes_labs[i+1] <- n_nodes_cum[i+1]-t
+    # rename vertices
+    labels <- seq(nodes_labs[i],nodes_labs[i+1])+1
+    t %+=% 1
+    vertex_attr(g) <- list(name = labels)
+    nodes[[i]] <- V(g)
+    EL  = get.edgelist(g)
+    EL_union <- rbind(EL_union,EL)
+  }
+  GU = graph_from_edgelist(EL_union, directed=FALSE)
+  
+  # add some between-communities edges
+  for (d in 1:difficulty) {
+    r <- seq(1,length(nodes))
+    index <- sample(r,2,replace = F)
+    edge <- c(sample(nodes[[index[1]]],1),sample(nodes[[index[2]]],1))
+    new_edge <- names(edge)
+    print(new_edge)
+    GU <- GU + edges(new_edge)
+  }
+  return(GU)
 }
 
 
@@ -125,6 +159,12 @@ find_communities <- function(graph) {
   vertex_attr(graph) <- list(name=V(graph))
   
   
+  # summary
+  N <- vcount(graph)
+  E <- ecount(graph)
+  N_dens <- N/E
+  
+  
   # edge.betweeness
   communities <- edge.betweenness.community(graph)
   n_clus_1 <- length(communities$membership %>% unique())
@@ -194,16 +234,18 @@ find_communities <- function(graph) {
 
 
 # STORAGE
-notable_graphs <- c("Coxeter","Folkman","Herschel","Icosahedral","Cubical")
-my_net <- merge_communities(notable_graphs[2:5],difficulty = 25)
-plot(my_net)
+notable_graphs <- c("Coxeter","Folkman","Herschel","Cubical")
+
+my_easy_net <- merge_communities(notable_graphs,difficulty = 0)
+my_hard_net <- merge_communities(notable_graphs,difficulty = 30)
+plot(my_easy_net)
+plot(my_hard_net)
+
+
 
 nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
-             "my_net"=my_net,"foodwebs_net"=foodweb_net)
+             "my_easy_net"=my_easy_net,"my_hard_net"=my_hard_net,"foodwebs_net"=foodweb_net)
 
-
-
-#find_communities(karate_net)
 
 for (i in 1:length(nets)) {
   net <- nets[[i]]
@@ -211,9 +253,15 @@ for (i in 1:length(nets)) {
   print(net_name)
   df <- find_communities(net)
   print(df)
-  write.csv(df, paste(net_name,"df.csv",sep = "_"))
-  
+  #write.csv(df, paste(net_name,"df.csv",sep = "_"))
 }
+
+
+
+#communities <- label.propagation.community(macaque_net)
+#plot(macaque_net,communities)
+
+
 
 
 
