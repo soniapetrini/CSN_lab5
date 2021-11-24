@@ -1,82 +1,79 @@
 
 # PACKAGES
 
-rm(list=ls())
-
 library(igraph)
 library(igraphdata)
 library(ggplot2)
 library(tidyr)
 library(xtable)
 
+defaultW <- getOption("warn") 
+options(warn = -1) 
+
 setwd("~/Library/Mobile Documents/com~apple~CloudDocs/FIB/csn/lab/5/CSN_lab5")
 
 # get nets
 data("foodwebs")
 data("macaque")
+data("rfid")
 foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
 macaque_net <- as.undirected(macaque, mode = "collapse")
+rfid_net <- as.undirected(rfid, mode = "collapse")
 karate_net <- graph.famous("Zachary")
 
 
 
-## customized graph
-merge_communities <- function(graphs, difficulty = length(graphs)+8 ) {
-  
-  # difficulty is an integer equal to the number of edges to add between communities
-  if (difficulty < length(graphs)+8) {
-    stop("Difficulty should be higher, or you could get an unconnected graph")
-  }
-  
-  labels <- seq(1,1000,50)
-  EL_union <- c()
-  for (i in 1:length(graphs)) {
-    g <- make_graph(graphs[i])
-    # rename vertices
-    possible_vertex_names <- seq(labels[i],labels[i+1])
-    g_labels <- as.character(sample(possible_vertex_names,vcount(g)))
-    vertex_attr(g) <- list(name = g_labels)
-    EL  = get.edgelist(g)
-    EL_union <- rbind(EL_union,EL)
-  }
-  GU = graph_from_edgelist(EL_union, directed=FALSE)
-  
-  # add some between-communities edges
-  x <- combn(V(GU),2)
-  my_edges <- x[,sample(seq(dim(x)[2]),difficulty,replace=F)]
-  GU <- GU + edges(my_edges)
-  return(GU)
-  
-}
-
-# 2 version
-merge_communities <- function(graphs, difficulty = NULL) {
-  n_nodes_cum <- c(0)
-  nodes_labs <- c(0)
+## customized graph (communities with ER graphs)
+merge_communities_ER <- function(comm_sizes,ERp, difficulty = NULL) {
+  n_communities <- length(comm_sizes)
+  vcount_cum <- c(0)
   nodes <- list()
   EL_union <- c()
   t <- 1
-  for (i in 1:length(graphs)) {
-    g <- make_graph(graphs[i])
-    n_nodes_cum[i+1] <- n_nodes_cum[i] + vcount(g) 
-    nodes_labs[i+1] <- n_nodes_cum[i+1]-t
-    # rename vertices
-    labels <- seq(nodes_labs[i],nodes_labs[i+1])+1
-    t %+=% 1
+  for (i in 1:n_communities) {
+    g <- erdos.renyi.game(comm_sizes[i],ERp)
+    vcount_cum[i+1] <- vcount_cum[i] + vcount(g) 
+    labels <- seq(vcount_cum[i]+ 1,vcount_cum[i+1])  
     vertex_attr(g) <- list(name = labels)
     nodes[[i]] <- V(g)
-    EL  = get.edgelist(g)
-    EL_union <- rbind(EL_union,EL)
+    EL_union <- rbind(EL_union,get.edgelist(g))
   }
   GU = graph_from_edgelist(EL_union, directed=FALSE)
   
   # add some between-communities edges
+  difficulty = difficulty*5
   for (d in 1:difficulty) {
-    r <- seq(1,length(nodes))
-    index <- sample(r,2,replace = F)
-    edge <- c(sample(nodes[[index[1]]],1),sample(nodes[[index[2]]],1))
+    clusters <- sample(seq(1,n_communities),2,replace = F)
+    edge <- c(sample(nodes[[clusters[1]]],1),sample(nodes[[clusters[2]]],1))
     new_edge <- names(edge)
-    print(new_edge)
+    GU <- GU + edges(new_edge)
+  }
+  plot(GU)
+  return(GU)
+}
+
+# customized graph 3 version (communities with complete graphs)
+merge_communities_full <- function(comm_sizes, difficulty = NULL) {
+  n_communities <- length(comm_sizes)
+  vcount_cum <- c(0)
+  nodes <- list()
+  EL_union <- c()
+  t <- 1
+  for (i in 1:n_communities) {
+    g <- graph.full(comm_sizes[i])
+    vcount_cum[i+1] <- vcount_cum[i] + vcount(g) 
+    labels <- seq(vcount_cum[i]+ 1,vcount_cum[i+1])    # rename vertices with sequential numbers 
+    vertex_attr(g) <- list(name = labels)              # to have minimum bridges
+    nodes[[i]] <- V(g)
+    EL  = get.edgelist(g)
+    EL_union <- rbind(EL_union,EL) }
+  GU = graph_from_edgelist(EL_union, directed=FALSE)   # connect the communities
+  
+  difficulty = difficulty*5
+  for (d in 1:difficulty) {
+    clusters <- sample(seq(1,n_communities),2,replace = F)
+    edge <- c(sample(nodes[[clusters[1]]],1),sample(nodes[[clusters[2]]],1))
+    new_edge <- names(edge)
     GU <- GU + edges(new_edge)
   }
   return(GU)
@@ -95,7 +92,6 @@ algorithms <- c("edge.betweenness",
                 "spinglass",
                 "walktrap",
                 "infomap")
-
 
 
 ## measures
@@ -124,6 +120,7 @@ get_measures <- function(graph, communities) {
   EXPANSION <- fc_tot/n
   
   
+  
   # Conductance
   fc <- rep(0, length(clusters))
   mc <- rep(0, length(clusters))
@@ -150,6 +147,18 @@ get_measures <- function(graph, communities) {
 }
 
 
+plot(karate_net)
+
+get_stats <- function(graph) {
+  # summary
+  N <- vcount(graph)
+  E <- ecount(graph)
+  E_dens <- E/N
+  k_mean <- mean(degree(graph))
+  graph_stats <- c(N,E,E_dens,k_mean)
+  return(graph_stats)
+}
+
 
 
 find_communities <- function(graph) {
@@ -157,70 +166,94 @@ find_communities <- function(graph) {
   graph <- as.undirected(graph, mode='collapse')
   graph <- simplify(graph)
   vertex_attr(graph) <- list(name=V(graph))
+  communities <-  label.propagation.community(graph)
   
   
-  # summary
-  N <- vcount(graph)
-  E <- ecount(graph)
-  N_dens <- N/E
-  
-  
+  ptm <- Sys.time()
   # edge.betweeness
   communities <- edge.betweenness.community(graph)
+  print("edge.betweeness")
+  time_elapsed1 <- Sys.time() - ptm
+  print(time_elapsed1)
   n_clus_1 <- length(communities$membership %>% unique())
   measures1 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures1[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()
   # fastgreedy.community
   communities <- fastgreedy.community(graph)
+  print("fastgreedy.community")
+  time_elapsed2 <- Sys.time() - ptm
+  print(time_elapsed2)
   n_clus_2 <- length(communities$membership %>% unique())
   measures2 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures2[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()
   # label propagation
   communities <-  label.propagation.community(graph)
+  print("label")
+  time_elapsed3 <- Sys.time() - ptm
+  print(time_elapsed3)
   n_clus_3 <- length(communities$membership %>% unique())
   measures3 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures3[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()          # timing leading.eigenvector.community()
+  
   # leading eigenvector
-  Isolated = which(degree(foodweb_net)==0)
+  print("eigenvector")
+  Isolated = which(degree(graph)==0)
   if (length(Isolated) != 0) {
     graph = delete.vertices(graph, Isolated)
   }
   
   arpack_defaults$maxiter = 1000000000
   communities <- leading.eigenvector.community(graph, options = arpack_defaults)
+  time_elapsed4 <- Sys.time() - ptm
+  print(time_elapsed4)
   n_clus_4 <- length(communities$membership %>% unique())
   measures4 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures4[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()
   # louvain method (multilevel)
   communities <- cluster_louvain(graph)
+  print("louvain")
+  time_elapsed5 <- Sys.time() - ptm
+  print(time_elapsed5)
   n_clus_5 <- length(communities$membership %>% unique())
   measures5 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures5[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
-  # optimal clustering
-  
-  #?# not working on mac, package required
-  
-  
+  ptm <- Sys.time()
   # spinglass
   communities <- cluster_spinglass(graph)
+  print("spinglass")
+  time_elapsed7 <- Sys.time() - ptm
+  print(time_elapsed7)
   n_clus_7 <- length(communities$membership %>% unique())
   measures7 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures7[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()
   # walktrap
   communities <- walktrap.community(graph)
+  print("walktrap")
+  time_elapsed8 <- Sys.time() - ptm
+  print(time_elapsed8)
   n_clus_8 <- length(communities$membership %>% unique())
   measures8 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures8[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
+  ptm <- Sys.time()
   # infomap
   communities <- cluster_infomap(graph)
+  print("infomap")
+  time_elapsed9 <- Sys.time() - ptm
+  print(time_elapsed9)
   n_clus_9 <- length(communities$membership %>% unique())
+  
   measures9 <- list("tpr"=NULL,"expansion"=NULL,"conductance"=NULL,"modularity"= NULL)
   measures9[c("tpr","expansion","conductance","modularity")] <- get_measures(graph,communities)
   
@@ -228,40 +261,61 @@ find_communities <- function(graph) {
   df <- rbind(df,measures1,measures2,measures3,measures4,measures5,measures7,measures8,measures9)
   df$algorithm <- algorithms
   df$clusters <- c(n_clus_1,n_clus_2,n_clus_3,n_clus_4,n_clus_5,n_clus_7,n_clus_8,n_clus_9)
-  
+  df$time <- c(time_elapsed1,time_elapsed2,time_elapsed3,time_elapsed4,time_elapsed5,
+               time_elapsed7,time_elapsed8,time_elapsed9)
   return(df)
 }
 
 
-# STORAGE
-notable_graphs <- c("Coxeter","Folkman","Herschel","Cubical")
-
-my_easy_net <- merge_communities(notable_graphs,difficulty = 0)
-my_hard_net <- merge_communities(notable_graphs,difficulty = 30)
-plot(my_easy_net)
-plot(my_hard_net)
+options(warn = defaultW)
 
 
 
-nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
-             "my_easy_net"=my_easy_net,"my_hard_net"=my_hard_net,"foodwebs_net"=foodweb_net)
+### build from complete graphs  
+comm_sizes <- c(94,53,25,62)
+full_net <- merge_communities_full(comm_sizes,difficulty = 100)
+#plot(full_net)
+#save(full_net,file="full_net.rda")
 
 
-#for (i in 1:length(nets)) {
-#  net <- nets[[i]]
-#  net_name <- names(nets[i])
-#  print(net_name)
-#  df <- find_communities(net)
-#  print(df)
-#  #write.csv(df, paste(net_name,"df.csv",sep = "_"))
-#}
-
-
-df <- find_communities(net)
-write.csv(df, paste(net_name,"df.csv",sep = "_"))
+## build from ER graphs  
+comm_sizes <- c(94,53,25,62)
+ERp <- 0.6
+ER_net <- merge_communities_ER(comm_sizes,ERp,difficulty = 100)
+plot(ER_net)
 
 
 
 
+## get results
+
+nets <- list("macaque_net"=macaque_net,"rfid_net"=rfid_net,
+              "full_net"=full_net,"ER_net"=ER_net)
 
 
+# summary table
+sum_tab <- data.frame(matrix(ncol = 5, nrow = 0))
+for (i in 1:length(nets)){
+  net_stats <- lapply(nets[i],FUN=get_stats)
+  net_stats <- append(unlist(net_stats),names(nets[i]))
+  sum_tab <- rbind(sum_tab,net_stats)
+}
+colnames(sum_tab) <- c("N","E","E_dens","k_mean","network")
+
+
+
+
+for (i in 1:length(nets)) {
+  net <- nets[[i]]
+  net_name <- names(nets[i])
+  print(net_name)
+  df <- find_communities(net)
+  print(xtable(df))
+  write.csv(df, paste(net_name,"df.csv",sep = "_"))
+}
+
+
+#rfid_df <- find_communities(rfid_net)
+
+df <- find_communities(rfid_net)
+cor(df$conductance,df$expansion)

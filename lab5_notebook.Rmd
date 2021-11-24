@@ -10,40 +10,23 @@ library(ggplot2)
 library(reshape)
 library(viridis)
 library(dplyr)
+source("lab5_better_script.R")
 
-data("foodwebs")
-foodweb_net <- as.undirected(foodwebs[[9]], mode = "collapse")
-print("foodweb_net")
-gsize(foodweb_net)
-gorder(foodweb_net)
+`%+=%` = function(e1,e2) eval.parent(substitute(e1 <- e1 + e2))
 
-data("macaque")
-macaque_net <- as.undirected(macaque, mode = "collapse")
-print("macaque_net")
-gsize(macaque_net)
-gorder(macaque_net)
-
-data("enron")
-enron_net <- enron
-print("enron_net")
-gsize(enron_net)
-gorder(enron_net)
-
-karate_net <- graph.famous("Zachary")
 ```
 
 
 Algorithms to try:
 
 • *edge.betweenness.community* [Newman and Girvan, 2004]
-• *fastgreedy.community* [Clauset et al., 2004]: modularity greedy opti-
-mization method.
+• *fastgreedy.community* [Clauset et al., 2004]: modularity greedy optimization method.
 • *label.propagation.community* [Raghavan et al., 2007]: This is a fast, nearly linear time algorithm for detecting community structure in net- works. It works by labeling the vertices with unique labels and then updating the labels by majority voting in the neighborhood of the vertex.
 • *leading.eigenvector.community* [Newman, 2006]
 • *multilevel.community* [Blondel et al., 2008]: This is a multi-level modularity optimization algorithm (the Louvain method).
-• *optimal.community* [Brandes et al., 2008]: Works by maximizing the mod- ularity measure over all possible partitions.
-• *spinglass.community* [Reichardt and Bornholdt, 2006]: tries to find com- munities in graphs via a spin-glass model and simulated annealing.
-• *walktrap.community* [Pons and Latapy, 2005]: tries to find densely con- nected subgraphs (communities) in a graph via random walks. The idea is that short random walks tend to stay in the same community.
+• *optimal.community* [Brandes et al., 2008]: Works by maximizing the modularity measure over all possible partitions.
+• *spinglass.community* [Reichardt and Bornholdt, 2006]: tries to find communities in graphs via a spin-glass model and simulated annealing.
+• *walktrap.community* [Pons and Latapy, 2005]: tries to find densely connected subgraphs (communities) in a graph via random walks. The idea is that short random walks tend to stay in the same community.
 • *infomap.community* [Rosvall and Bergstrom, 2008]: Find community struc- ture that minimizes the expected description length of a random walker tra jectory.
 
 
@@ -51,67 +34,146 @@ mization method.
 # Plot of results for a Network
 
 ```{r}
-nets <- list("macaque_net"=macaque_net,"karate_net"=karate_net,
-             "my_net"=my_net,"foodwebs_net"=foodweb_net)
-
-df <- read.csv("foodwebs_net_df.csv")
+df <- read.csv("ER_net_df.csv")
   
 setEPS()
-postscript("foodweb_net_measures.eps")
-df[,-c(1,ncol(df))] %>% pivot_longer(-algorithm, names_to = "Var", values_to = "val") %>%
+postscript("ER_net_measures.eps")
+df[,-c(1,ncol(df)-1,ncol(df))] %>% pivot_longer(-algorithm, names_to = "Var", values_to = "val") %>%
   ggplot(aes(x=Var,y=val,fill=algorithm)) +
     geom_bar(stat="identity",position="dodge") +
-    scale_fill_discrete(name="algortihm") +
+    scale_fill_discrete(name="algorithm") +
     xlab("Measure")+ylab("Value")
 dev.off()
 
+plot(rfid_net)
 ```
 
 
 # Plot for different difficulty values
 
 ```{r}
-graphs <- c("Coxeter","Folkman","Herschel","Cubical")
-
-est_clusters <- list()
+defaultW <- getOption("warn")
+options(warn = -1)
+comm_sizes <- c(50,47,35,28)
+ERp <- 0.4
+est_clusters_ER <- list()
+est_clusters_full <- list()
 i <- 1
-difficulties <- seq(0,100)
+difficulties <- seq(10,100,5)
 for (d in difficulties) {
-  graph_d <- merge_communities(graphs, difficulty = d)
-  df <- find_communities(graph_d)
-  est_clusters[[i]] <- df$clusters
+  print(paste("ieration:",d))
+  graph_ER <- merge_communities_ER(comm_sizes,ERp , difficulty = d)
+  graph_full <- merge_communities_full(comm_sizes, difficulty = d)
+  df_ER <- find_communities(graph_ER)
+  df_full <- find_communities(graph_full)
+  est_clusters_ER[[i]] <- df_ER$clusters
+  est_clusters_full[[i]] <- df_full$clusters
   i <- i + 1
 }
+options(warn = defaultW)
 
-results <- list("edge.betweenness"=NULL,"fastgreedy"=NULL,"label.propagation"=NULL,"leading.eigenvector"=NULL,
+results_ER <- list("edge.betweenness"=NULL,"fastgreedy"=NULL,"label.propagation"=NULL,"leading.eigenvector"=NULL,
             "multilevel"=NULL,"spinglass"=NULL,"walktrap"=NULL,"infomap"=NULL)
 for (i in 1:length(algorithms)) {
-  results[[i]] <- as.numeric(lapply(est_clusters, `[[`, i))
+  results_ER[[i]] <- as.numeric(lapply(est_clusters_ER, `[[`, i))
 }
 
-
-# estimated clusters
-data.frame(results) %>%  select(1:4) %>% mutate(difficulty=difficulties) %>% 
-  melt(id.vars="difficulty") %>%
-  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
-  geom_line() +
-  geom_hline(yintercept=4, linetype="dashed", 
-                color = "red", size=1) +
-  ylab("estimated number of clusters")
-
-# error 
-
-data.frame(results) %>%  select(5:8) %>% mutate(difficulty=difficulties) %>%
-  melt(id.vars="difficulty") %>%
-  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
-  geom_line() +
-  geom_hline(yintercept=4, linetype="dashed", 
-                color = "red", size=1) +
-  ylab("estimated number of clusters")
+results_full <- list("edge.betweenness"=NULL,"fastgreedy"=NULL,"label.propagation"=NULL,"leading.eigenvector"=NULL,
+            "multilevel"=NULL,"spinglass"=NULL,"walktrap"=NULL,"infomap"=NULL)
+for (i in 1:length(algorithms)) {
+  results_full[[i]] <- as.numeric(lapply(est_clusters_full, `[[`, i))
+}
 
 ```
 
+```{r}
+save(results_ER,file="ER_difficulties_results_200.rda")
+save(results_full, file="full_difficulties_results_200.rda")
+load("fg_difficulties_results.rda")
 
+# estimated clusters
+setEPS()
+#postscript("est_clusters_1:4_full.eps")
+data.frame(results_ER) %>%  select(1:4) %>% mutate(difficulty=difficulties) %>% 
+  melt(id.vars="difficulty") %>%
+  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
+  geom_line(size=1) +
+  geom_hline(yintercept=4, linetype="dashed", 
+                color = "red", size=0.5) +
+  theme(text = element_text(size = 18),legend.position="bottom",legend.title = element_blank()) +
+  ylab("estimated number of clusters") +
+  guides(colour=guide_legend(nrow=2)) +
+  ylim(c(2,8))
+dev.off()
+
+# estimated clusters
+setEPS()
+#postscript("est_clusters_5:8_full.eps")
+data.frame(results_ER) %>%  select(5:8) %>% mutate(difficulty=difficulties) %>%
+  melt(id.vars="difficulty") %>%
+  ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
+  geom_line(size=1) +
+  geom_hline(yintercept=4, linetype="dashed", 
+                color = "red", size=0.5) +
+  theme(text = element_text(size = 18),legend.position="bottom",legend.title = element_blank()) +
+  theme(legend.text=element_text(size=18)) +
+  ylab("estimated number of clusters") +
+  ylim(c(2,8))
+dev.off()
+```
+
+
+# plot best configuration
+
+```{r}
+graph <- plot(macaque_net)
+graph <- as.undirected(graph, mode='collapse')
+graph <- simplify(graph)
+vertex_attr(graph) <- list(name=V(graph))
+communities <- label.propagation.community(graph)
+setEPS()
+postscript("best_full.eps")
+plot(communities,graph)
+dev.off()
+```
+
+
+# Plot timing
+
+```{r}
+nets <- list("macaque_net"=macaque_net,"Hospital_net"=rfid_net,
+             "full_net"=full_net,"ER_net"=ER_net)
+
+
+timings <- list()
+for (i in 1:length(nets)) {
+  print(paste("iteration:",i))
+  net <- nets[[i]]
+  net_name <- names(nets[i])
+  df <- find_communities(net)
+  timings[[i]] <- as.numeric(df$time)
+  i <- i + 1
+}
+
+df_time <- data.frame(do.call(rbind,timings))
+colnames(df_time) <- algorithms
+df_time$network <- names(nets)
+
+# plot
+setEPS()
+postscript("elapsed_time.eps")
+df_time %>% 
+  melt(id.vars="network") %>% 
+  ggplot(aes(fill=variable, y=value, x=network)) + 
+    geom_bar(position="fill", stat="identity") +
+  theme(text = element_text(size = 15)) +
+  ylab("Relative elapsed time")
+dev.off()
+```
+
+```{r}
+
+```
 
 
 
