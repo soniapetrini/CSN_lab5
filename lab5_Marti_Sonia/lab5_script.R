@@ -284,13 +284,10 @@ ERp <- 0.6
 ER_net <- merge_communities_ER(comm_sizes,ERp,difficulty = 100)
 plot(ER_net)
 
-
-
-
 ## get results
 
 nets <- list("macaque_net"=macaque_net,"rfid_net"=rfid_net,
-              "full_net"=full_net,"ER_net"=ER_net)
+             "full_net"=full_net,"ER_net"=ER_net)
 
 
 # summary table
@@ -310,12 +307,117 @@ for (i in 1:length(nets)) {
   net_name <- names(nets[i])
   print(net_name)
   df <- find_communities(net)
-  print(xtable(df))
-  write.csv(df, paste(net_name,"df.csv",sep = "_"))
+  #write.csv(df, paste(net_name,"df.csv",sep = "_"))
 }
 
 
-#rfid_df <- find_communities(rfid_net)
 
-df <- find_communities(rfid_net)
-cor(df$conductance,df$expansion)
+# TASK 2
+## Wikipedia gml
+
+### Loading data and Initial exploration
+
+require(tm)
+require(ggplot2)
+require(wordcloud)
+require(SnowballC)
+require(tidytext)
+require(RColorBrewer)
+
+wiki = read.graph("wikipedia.gml", format="gml")
+uwiki = as.undirected(wiki,mode = "collapse") # working with undirected version
+
+vcount(wiki); ecount(wiki)
+edge_density(uwiki,loops = F)
+
+d = degree(uwiki,mode = "all")
+
+as.data.frame(table(d)) %>%
+  ggplot(aes(x = as.numeric(d),y = Freq)) +
+  geom_point() +
+  scale_y_continuous(trans = "log10") +
+  scale_x_continuous(trans = "log10") +
+  labs(title = "Summary Wikipedia dataset",subtitle = "Degree distribution and descriptives",
+       x="Degree",y="Number of vertices") +
+  ggplot2::annotate("label",label="Number of vertices: 27475\nNumber of edges: 85729\nEdge density: 0.0002",
+                    x = 3,y=10)
+
+### Community detection
+
+
+cluster = function(graph, clust_alg, complexity = 5){
+  
+  c = clust_alg(graph)
+  memberships = membership(c)
+  
+  singletones = which(table(c$membership) < complexity)
+  
+  keep = V(graph)[!(c$membership %in% singletones)]
+  
+  graph = induced.subgraph(graph,keep)
+  
+  c = clust_alg(graph) #clean graph
+  
+  n <- vcount(graph)
+  
+  is_edges_out = igraph::crossing(c,graph)  # is the edge pointing out the cluster?
+  fc_tot = 2*sum(is_edges_out)
+  
+  EXPANSION <- fc_tot/n
+  modularity = modularity(c)
+  n_groups = length(unique(c$membership))
+  
+  return(data.frame(algorithm = c$algorithm, n_groups = n_groups, expansion = EXPANSION ,modularity = modularity, row.names = NULL))
+}
+
+
+wiki_results = rbind(cluster(uwiki, fastgreedy.community),
+                     cluster(uwiki, walktrap.community),
+                     cluster(uwiki, label.propagation.community),
+                     cluster(uwiki, infomap.community))
+
+## Best clust algorithm chosen: fast greedy
+
+c = fastgreedy.community(uwiki)
+memberships = membership(c)
+
+singletones = which(table(c$membership) < 5)
+
+keep = V(graph)[!(c$membership %in% singletones)]
+
+graph = induced.subgraph(uwiki,keep)
+
+c = fastgreedy.community(graph)
+
+
+## Result visualization of the 
+
+cloud_importance = function(group){
+  
+  meaningless = c("of","and","in","the","for", "a", "to", "The", "List")
+  x = sapply(group, function(x) strsplit(x, split = " "),simplify = T,USE.NAMES = F)
+  x = unlist(x)
+  
+  tab = as.data.frame(table(x))
+  tab = tab[order(tab$Freq,decreasing = T),]
+  tab = tab[!(tab$x %in% meaningless),]
+  
+  wordcloud(words = tab$x, tab$Freq, max.words = 30,random.order=FALSE,
+            rot.per=0.35,colors=brewer.pal(8, "Dark2"))
+}
+
+# Plotting grid: cloud words 
+
+par(mfrow=c(3,4))
+
+for(i in 1:12){
+  group = V(graph)[c$membership==i]$label
+  cloud_importance(group)
+}
+
+
+
+
+
+
+

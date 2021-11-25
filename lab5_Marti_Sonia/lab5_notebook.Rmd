@@ -10,7 +10,7 @@ library(ggplot2)
 library(reshape)
 library(viridis)
 library(dplyr)
-source("lab5_better_script.R")
+source("lab5_script.R")
 
 `%+=%` = function(e1,e2) eval.parent(substitute(e1 <- e1 + e2))
 
@@ -36,16 +36,13 @@ Algorithms to try:
 ```{r}
 df <- read.csv("ER_net_df.csv")
   
-setEPS()
-postscript("ER_net_measures.eps")
+
 df[,-c(1,ncol(df)-1,ncol(df))] %>% pivot_longer(-algorithm, names_to = "Var", values_to = "val") %>%
   ggplot(aes(x=Var,y=val,fill=algorithm)) +
     geom_bar(stat="identity",position="dodge") +
     scale_fill_discrete(name="algorithm") +
     xlab("Measure")+ylab("Value")
-dev.off()
 
-plot(rfid_net)
 ```
 
 
@@ -59,7 +56,7 @@ ERp <- 0.4
 est_clusters_ER <- list()
 est_clusters_full <- list()
 i <- 1
-difficulties <- seq(10,100,5)
+difficulties <- seq(10,200,5)
 for (d in difficulties) {
   print(paste("ieration:",d))
   graph_ER <- merge_communities_ER(comm_sizes,ERp , difficulty = d)
@@ -89,26 +86,25 @@ for (i in 1:length(algorithms)) {
 ```{r}
 save(results_ER,file="ER_difficulties_results_200.rda")
 save(results_full, file="full_difficulties_results_200.rda")
-load("fg_difficulties_results.rda")
+load("ER_difficulties_results_200.rda")
+load("full_difficulties_results_200.rda")
 
 # estimated clusters
-setEPS()
-#postscript("est_clusters_1:4_full.eps")
-data.frame(results_ER) %>%  select(1:4) %>% mutate(difficulty=difficulties) %>% 
+
+data.frame(results_ER) %>%  select(1:4) %>% mutate(difficulty=difficulties) %>%
   melt(id.vars="difficulty") %>%
   ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
   geom_line(size=1) +
-  geom_hline(yintercept=4, linetype="dashed", 
-                color = "red", size=0.5) +
+  geom_hline(y=mean,size=1) +
+  geom_hline(yintercept=4, linetype="dashed", color = "red", size=0.5) +
   theme(text = element_text(size = 18),legend.position="bottom",legend.title = element_blank()) +
   ylab("estimated number of clusters") +
   guides(colour=guide_legend(nrow=2)) +
   ylim(c(2,8))
-dev.off()
+
 
 # estimated clusters
-setEPS()
-#postscript("est_clusters_5:8_full.eps")
+
 data.frame(results_ER) %>%  select(5:8) %>% mutate(difficulty=difficulties) %>%
   melt(id.vars="difficulty") %>%
   ggplot(aes( x=difficulty, y=value, colour=variable, group=variable )) + 
@@ -119,22 +115,21 @@ data.frame(results_ER) %>%  select(5:8) %>% mutate(difficulty=difficulties) %>%
   theme(legend.text=element_text(size=18)) +
   ylab("estimated number of clusters") +
   ylim(c(2,8))
-dev.off()
+
 ```
 
 
 # plot best configuration
 
 ```{r}
-graph <- plot(macaque_net)
+graph <- ER_net
 graph <- as.undirected(graph, mode='collapse')
 graph <- simplify(graph)
 vertex_attr(graph) <- list(name=V(graph))
-communities <- label.propagation.community(graph)
-setEPS()
-postscript("best_full.eps")
+communities <- fastgreedy.community(graph)
+
 plot(communities,graph)
-dev.off()
+
 ```
 
 
@@ -160,18 +155,13 @@ colnames(df_time) <- algorithms
 df_time$network <- names(nets)
 
 # plot
-setEPS()
-postscript("elapsed_time.eps")
+
 df_time %>% 
   melt(id.vars="network") %>% 
   ggplot(aes(fill=variable, y=value, x=network)) + 
     geom_bar(position="fill", stat="identity") +
   theme(text = element_text(size = 15)) +
   ylab("Relative elapsed time")
-dev.off()
-```
-
-```{r}
 
 ```
 
